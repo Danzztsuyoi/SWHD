@@ -4,12 +4,16 @@ const fs = require("fs")
 const ffmpeg = require("fluent-ffmpeg")
 const path = require("path")
 
+// optional tapi disarankan biar ffmpeg jalan di Railway
+const ffmpegPath = require("ffmpeg-static")
+ffmpeg.setFfmpegPath(ffmpegPath)
+
 const app = express()
 app.use(express.json())
 
 const PORT = process.env.PORT || 3000
 
-async function downloadFile(url, path) {
+async function downloadFile(url, filePath) {
   const response = await axios({
     url,
     method: "GET",
@@ -22,14 +26,23 @@ async function downloadFile(url, path) {
     timeout: 60000
   })
 
+  return new Promise((resolve, reject) => {
+    const stream = fs.createWriteStream(filePath)
+    response.data.pipe(stream)
+
+    stream.on("finish", resolve)
+    stream.on("error", reject)
+  })
+}
+
 function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .outputOptions([
         "-vf scale=-2:1080",
-        "-crf 23",
-        "-maxrate 2.5M",
-        "-bufsize 5M",
+        "-crf 22",
+        "-maxrate 3M",
+        "-bufsize 6M",
         "-preset medium",
         "-movflags +faststart"
       ])
@@ -53,6 +66,8 @@ async function processVideo(url, res) {
     })
 
   } catch (err) {
+    console.log("ERROR:", err)
+
     res.status(500).json({
       status: "error",
       message: err.message
@@ -73,7 +88,7 @@ app.get("/compress", async (req, res) => {
 })
 
 app.get("/", (req, res) => {
-  res.send("API READY")
+  res.send("API READY 🚀")
 })
 
 app.listen(PORT, () => {
