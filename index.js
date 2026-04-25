@@ -14,29 +14,39 @@ const PORT = process.env.PORT || 3000
 async function downloadFile(url, pathFile) {
   console.log("Download URL:", url)
 
+  if (!url.includes("http")) {
+    throw new Error("URL tidak valid")
+  }
+
   const response = await axios({
-    url,
     method: "GET",
+    url,
     responseType: "stream",
     headers: {
-      "User-Agent": "Mozilla/5.0",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "Referer": "https://catbox.moe/",
       "Accept": "*/*"
     },
-    maxRedirects: 5,
-    timeout: 60000
+    maxRedirects: 10,
+    timeout: 120000,
+    validateStatus: () => true
   })
 
+  if (response.status !== 200) {
+    throw new Error("Download gagal status: " + response.status)
+  }
+
   return new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(pathFile)
+    const writer = fs.createWriteStream(pathFile)
 
-    response.data.pipe(stream)
+    response.data.pipe(writer)
 
-    stream.on("finish", () => {
+    writer.on("finish", () => {
       console.log("Download selesai")
       resolve()
     })
 
-    stream.on("error", (err) => {
+    writer.on("error", (err) => {
       console.log("Download error:", err)
       reject(err)
     })
@@ -94,6 +104,9 @@ async function processVideo(url, res) {
     if (!fs.existsSync(input)) {
       throw new Error("file input tidak ada")
     }
+
+    // delay biar aman
+    await new Promise(r => setTimeout(r, 1000))
 
     console.log("Mulai compress...")
     await compressVideo(input, output)
