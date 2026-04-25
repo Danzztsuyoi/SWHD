@@ -29,7 +29,8 @@ function compressVideo(input, output) {
       .outputOptions([
         "-vf scale=-2:720",
         "-crf 28",
-        "-maxrate 1M"
+        "-maxrate 1M",
+        "-bufsize 2M"
       ])
       .on("end", resolve)
       .on("error", reject)
@@ -43,7 +44,12 @@ async function uploadToCatbox(filePath) {
   form.append("fileToUpload", fs.createReadStream(filePath))
 
   const res = await axios.post("https://catbox.moe/user/api.php", form, {
-    headers: form.getHeaders()
+    headers: {
+      ...form.getHeaders(),
+      "User-Agent": "Mozilla/5.0"
+    },
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity
   })
 
   return res.data
