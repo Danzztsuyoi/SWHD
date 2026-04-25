@@ -28,10 +28,12 @@ function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .outputOptions([
-        "-vf scale=-2:720",
-        "-crf 28",
-        "-maxrate 1M",
-        "-bufsize 2M"
+        "-vf scale=-2:1080",
+        "-crf 23",
+        "-maxrate 2.5M",
+        "-bufsize 5M",
+        "-preset medium",
+        "-movflags +faststart"
       ])
       .on("end", resolve)
       .on("error", reject)
