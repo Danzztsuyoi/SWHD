@@ -43,14 +43,24 @@ async function uploadToCatbox(filePath) {
   form.append("reqtype", "fileupload")
   form.append("fileToUpload", fs.createReadStream(filePath))
 
-  const res = await axios.post("https://catbox.moe/user/api.php", form, {
+  const res = await axios({
+    method: "post",
+    url: "https://catbox.moe/user/api.php",
+    data: form,
     headers: {
       ...form.getHeaders(),
-      "User-Agent": "Mozilla/5.0"
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "Accept": "*/*",
+      "Connection": "keep-alive"
     },
     maxContentLength: Infinity,
-    maxBodyLength: Infinity
+    maxBodyLength: Infinity,
+    validateStatus: () => true
   })
+
+  if (typeof res.data !== "string" || !res.data.startsWith("https")) {
+    throw new Error("Upload gagal: " + res.data)
+  }
 
   return res.data
 }
