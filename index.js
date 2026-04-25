@@ -3,20 +3,22 @@ const axios = require("axios")
 const fs = require("fs")
 const ffmpeg = require("fluent-ffmpeg")
 const FormData = require("form-data")
+const path = require("path")
 
 const app = express()
 app.use(express.json())
 
 const PORT = process.env.PORT || 3000
 
-async function downloadFile(url, path) {
+async function downloadFile(url, filePath) {
   const response = await axios({
     url,
     method: "GET",
     responseType: "stream"
   })
+
   return new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(path)
+    const stream = fs.createWriteStream(filePath)
     response.data.pipe(stream)
     stream.on("finish", resolve)
     stream.on("error", reject)
@@ -30,7 +32,8 @@ function compressVideo(input, output) {
         "-vf scale=-2:720",
         "-crf 28",
         "-maxrate 1M",
-        "-bufsize 2M"
+        "-bufsize 2M",
+        "-preset veryfast"
       ])
       .on("end", resolve)
       .on("error", reject)
@@ -57,8 +60,8 @@ async function uploadToFileIO(filePath) {
 
 async function processVideo(url, res) {
   try {
-    const input = "input.mp4"
-    const output = "output.mp4"
+    const input = path.join(__dirname, "input.mp4")
+    const output = path.join(__dirname, "output.mp4")
 
     await downloadFile(url, input)
     await compressVideo(input, output)
