@@ -4,10 +4,6 @@ const fs = require("fs")
 const ffmpeg = require("fluent-ffmpeg")
 const path = require("path")
 
-// optional tapi disarankan biar ffmpeg jalan di Railway
-const ffmpegPath = require("ffmpeg-static")
-ffmpeg.setFfmpegPath(ffmpegPath)
-
 const app = express()
 app.use(express.json())
 
@@ -40,9 +36,9 @@ function compressVideo(input, output) {
     ffmpeg(input)
       .outputOptions([
         "-vf scale=-2:1080",
-        "-crf 22",
-        "-maxrate 3M",
-        "-bufsize 6M",
+        "-crf 23",
+        "-maxrate 2.5M",
+        "-bufsize 5M",
         "-preset medium",
         "-movflags +faststart"
       ])
@@ -67,7 +63,6 @@ async function processVideo(url, res) {
 
   } catch (err) {
     console.log("ERROR:", err)
-
     res.status(500).json({
       status: "error",
       message: err.message
