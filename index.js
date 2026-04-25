@@ -9,20 +9,18 @@ app.use(express.json())
 
 const PORT = process.env.PORT || 3000
 
-async function downloadFile(url, filePath) {
+async function downloadFile(url, path) {
   const response = await axios({
     url,
     method: "GET",
-    responseType: "stream"
+    responseType: "stream",
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "*/*"
+    },
+    maxRedirects: 5,
+    timeout: 60000
   })
-
-  return new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(filePath)
-    response.data.pipe(stream)
-    stream.on("finish", resolve)
-    stream.on("error", reject)
-  })
-}
 
 function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
