@@ -1,56 +1,94 @@
-const express = require('express')
-const axios = require('axios')
-const fs = require('fs')
-const ffmpeg = require('fluent-ffmpeg')
+const express = require("express")
+const axios = require("axios")
+const fs = require("fs")
+const ffmpeg = require("fluent-ffmpeg")
+const FormData = require("form-data")
 
 const app = express()
 app.use(express.json())
 
-app.post('/compress-link', async (req, res) => {
+const PORT = process.env.PORT || 3000
+
+async function downloadFile(url, path) {
+  const response = await axios({
+    url,
+    method: "GET",
+    responseType: "stream"
+  })
+  return new Promise((resolve, reject) => {
+    const stream = fs.createWriteStream(path)
+    response.data.pipe(stream)
+    stream.on("finish", resolve)
+    stream.on("error", reject)
+  })
+}
+
+function compressVideo(input, output) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(input)
+      .outputOptions([
+        "-vf scale=-2:720",
+        "-crf 28",
+        "-maxrate 1M"
+      ])
+      .on("end", resolve)
+      .on("error", reject)
+      .save(output)
+  })
+}
+
+async function uploadToCatbox(filePath) {
+  const form = new FormData()
+  form.append("reqtype", "fileupload")
+  form.append("fileToUpload", fs.createReadStream(filePath))
+
+  const res = await axios.post("https://catbox.moe/user/api.php", form, {
+    headers: form.getHeaders()
+  })
+
+  return res.data
+}
+
+async function processVideo(url, res) {
   try {
-    const url = req.body.url
+    const input = "input.mp4"
+    const output = "output.mp4"
 
-    if (!url) return res.status(400).send('No URL')
+    await downloadFile(url, input)
+    await compressVideo(input, output)
+    const uploaded = await uploadToCatbox(output)
 
-    const input = `input_${Date.now()}.mp4`
-    const output = `output_${Date.now()}.mp4`
+    fs.unlinkSync(input)
+    fs.unlinkSync(output)
 
-    const response = await axios.get(url, { responseType: 'stream' })
-    const writer = fs.createWriteStream(input)
-
-    response.data.pipe(writer)
-
-    writer.on('finish', () => {
-      ffmpeg(input)
-        .videoCodec('libx264')
-        .outputOptions([
-          '-preset veryfast',
-          '-crf 28',
-          '-maxrate 1M',
-          '-bufsize 2M'
-        ])
-        .size('?x720')
-        .save(output)
-        .on('end', () => {
-          res.json({
-            url: `${process.env.RAILWAY_STATIC_URL || ''}/${output}`
-          })
-
-          fs.unlinkSync(input)
-        })
-        .on('error', (err) => {
-          console.log(err)
-          res.status(500).send('ffmpeg error')
-        })
+    res.json({
+      status: "success",
+      result: uploaded
     })
-
-  } catch (e) {
-    console.log(e)
-    res.status(500).send('error')
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: err.message
+    })
   }
+}
+
+app.post("/compress-link", async (req, res) => {
+  const { url } = req.body
+  if (!url) return res.status(400).json({ error: "url required" })
+  processVideo(url, res)
 })
 
-app.use(express.static('./'))
+app.get("/compress", async (req, res) => {
+  const url = req.query.url
+  if (!url) return res.status(400).json({ error: "url required" })
+  processVideo(url, res)
+})
 
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => console.log('Web jalan di port ' + PORT))
+app.get("/", (req, res) => {
+  res.send("API READY")
+})
+
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT)
+})
