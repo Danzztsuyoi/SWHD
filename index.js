@@ -38,31 +38,21 @@ function compressVideo(input, output) {
   })
 }
 
-async function uploadToCatbox(filePath) {
+async function uploadToFileIO(filePath) {
   const form = new FormData()
-  form.append("reqtype", "fileupload")
-  form.append("fileToUpload", fs.createReadStream(filePath))
+  form.append("file", fs.createReadStream(filePath))
 
-  const res = await axios({
-    method: "post",
-    url: "https://catbox.moe/user/api.php",
-    data: form,
-    headers: {
-      ...form.getHeaders(),
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      "Accept": "*/*",
-      "Connection": "keep-alive"
-    },
+  const res = await axios.post("https://file.io", form, {
+    headers: form.getHeaders(),
     maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-    validateStatus: () => true
+    maxBodyLength: Infinity
   })
 
-  if (typeof res.data !== "string" || !res.data.startsWith("https")) {
-    throw new Error("Upload gagal: " + res.data)
+  if (!res.data.success) {
+    throw new Error("Upload gagal")
   }
 
-  return res.data
+  return res.data.link
 }
 
 async function processVideo(url, res) {
@@ -72,7 +62,7 @@ async function processVideo(url, res) {
 
     await downloadFile(url, input)
     await compressVideo(input, output)
-    const uploaded = await uploadToCatbox(output)
+    const uploaded = await uploadToFileIO(output)
 
     fs.unlinkSync(input)
     fs.unlinkSync(output)
