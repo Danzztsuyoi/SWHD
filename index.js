@@ -2,7 +2,6 @@ const express = require("express")
 const axios = require("axios")
 const fs = require("fs")
 const ffmpeg = require("fluent-ffmpeg")
-const FormData = require("form-data")
 const path = require("path")
 
 const app = express()
@@ -41,23 +40,6 @@ function compressVideo(input, output) {
   })
 }
 
-async function uploadToFileIO(filePath) {
-  const form = new FormData()
-  form.append("file", fs.createReadStream(filePath))
-
-  const res = await axios.post("https://file.io", form, {
-    headers: form.getHeaders(),
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity
-  })
-
-  if (!res.data.success) {
-    throw new Error("Upload gagal")
-  }
-
-  return res.data.link
-}
-
 async function processVideo(url, res) {
   try {
     const input = path.join(__dirname, "input.mp4")
@@ -65,15 +47,12 @@ async function processVideo(url, res) {
 
     await downloadFile(url, input)
     await compressVideo(input, output)
-    const uploaded = await uploadToFileIO(output)
 
-    fs.unlinkSync(input)
-    fs.unlinkSync(output)
-
-    res.json({
-      status: "success",
-      result: uploaded
+    res.download(output, "compressed.mp4", () => {
+      if (fs.existsSync(input)) fs.unlinkSync(input)
+      if (fs.existsSync(output)) fs.unlinkSync(output)
     })
+
   } catch (err) {
     res.status(500).json({
       status: "error",
