@@ -59,10 +59,11 @@ function compressVideo(input, output) {
     ffmpeg(input)
       .outputOptions([
         "-vf scale=-2:1080",
-        "-crf 22",
+        "-crf 21",
         "-maxrate 3M",
         "-bufsize 6M",
-        "-preset medium",
+        "-preset slow",
+        "-tune animation",
         "-movflags +faststart"
       ])
       .on("start", (cmd) => {
