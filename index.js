@@ -31,8 +31,7 @@ function compressVideo(input, output) {
         "-vf scale=-2:720",
         "-crf 28",
         "-maxrate 1M",
-        "-bufsize 2M",
-        "-preset veryfast"
+        "-bufsize 2M"
       ])
       .on("end", resolve)
       .on("error", reject)
