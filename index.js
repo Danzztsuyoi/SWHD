@@ -3,13 +3,17 @@ const axios = require("axios")
 const fs = require("fs")
 const ffmpeg = require("fluent-ffmpeg")
 const path = require("path")
+const { execSync } = require("child_process")
 
 const app = express()
 app.use(express.json())
 
 const PORT = process.env.PORT || 3000
 
-async function downloadFile(url, filePath) {
+// ================= DOWNLOAD =================
+async function downloadFile(url, pathFile) {
+  console.log("Download URL:", url)
+
   const response = await axios({
     url,
     method: "GET",
@@ -23,46 +27,92 @@ async function downloadFile(url, filePath) {
   })
 
   return new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(filePath)
+    const stream = fs.createWriteStream(pathFile)
+
     response.data.pipe(stream)
 
-    stream.on("finish", resolve)
-    stream.on("error", reject)
+    stream.on("finish", () => {
+      console.log("Download selesai")
+      resolve()
+    })
+
+    stream.on("error", (err) => {
+      console.log("Download error:", err)
+      reject(err)
+    })
   })
 }
 
+// ================= COMPRESS =================
 function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .outputOptions([
         "-vf scale=-2:1080",
-        "-crf 23",
-        "-maxrate 2.5M",
-        "-bufsize 5M",
+        "-crf 22",
+        "-maxrate 3M",
+        "-bufsize 6M",
         "-preset medium",
         "-movflags +faststart"
       ])
-      .on("end", resolve)
-      .on("error", reject)
+      .on("start", (cmd) => {
+        console.log("FFMPEG CMD:", cmd)
+      })
+      .on("end", () => {
+        console.log("Compress selesai")
+        resolve()
+      })
+      .on("error", (err) => {
+        console.log("FFMPEG ERROR:", err)
+        reject(err)
+      })
       .save(output)
   })
 }
 
+// ================= PROCESS =================
 async function processVideo(url, res) {
   try {
+    console.log("=== START PROCESS ===")
+    console.log("URL:", url)
+
     const input = path.join(__dirname, "input.mp4")
     const output = path.join(__dirname, "output.mp4")
 
+    // cek ffmpeg
+    try {
+      execSync("ffmpeg -version")
+      console.log("FFMPEG TERDETEKSI ✅")
+    } catch {
+      console.log("FFMPEG TIDAK ADA ❌")
+      throw new Error("ffmpeg belum terinstall di server")
+    }
+
+    console.log("Mulai download...")
     await downloadFile(url, input)
+
+    if (!fs.existsSync(input)) {
+      throw new Error("file input tidak ada")
+    }
+
+    console.log("Mulai compress...")
     await compressVideo(input, output)
 
+    if (!fs.existsSync(output)) {
+      throw new Error("file output tidak ada")
+    }
+
+    console.log("Kirim ke user...")
     res.download(output, "compressed.mp4", () => {
+      console.log("Selesai kirim")
+
       if (fs.existsSync(input)) fs.unlinkSync(input)
       if (fs.existsSync(output)) fs.unlinkSync(output)
     })
 
   } catch (err) {
-    console.log("ERROR:", err)
+    console.log("ERROR BESAR:", err)
+
     res.status(500).json({
       status: "error",
       message: err.message
@@ -70,22 +120,24 @@ async function processVideo(url, res) {
   }
 }
 
-app.post("/compress-link", async (req, res) => {
-  const { url } = req.body
-  if (!url) return res.status(400).json({ error: "url required" })
-  processVideo(url, res)
-})
-
+// ================= ROUTES =================
 app.get("/compress", async (req, res) => {
   const url = req.query.url
   if (!url) return res.status(400).json({ error: "url required" })
   processVideo(url, res)
 })
 
-app.get("/", (req, res) => {
-  res.send("API READY 🚀")
+app.post("/compress-link", async (req, res) => {
+  const { url } = req.body
+  if (!url) return res.status(400).json({ error: "url required" })
+  processVideo(url, res)
 })
 
+app.get("/", (req, res) => {
+  res.send("API READY")
+})
+
+// ================= START =================
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT)
 })
