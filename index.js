@@ -50,14 +50,12 @@ function compressVideo(input, output) {
       .outputOptions([
         "-vf scale=-2:1080",
   "-c:v libx264",
-  "-preset medium",
+  "-preset fast",
   "-crf 20",
-  "-maxrate 2.5M",
-  "-bufsize 5M",
   "-pix_fmt yuv420p",
-  "-movflags +faststart",
   "-profile:v high",
-  "-level 4.1"
+  "-level 4.1",
+  "-movflags +faststart"
       ])
       .on("start", cmd => console.log("FFMPEG CMD:", cmd))
       .on("stderr", line => console.log("FFERR:", line))
