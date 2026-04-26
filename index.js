@@ -61,11 +61,16 @@ async function processVideo(url, res) {
       ffmpeg(input)
         .videoCodec("libx264")
         .outputOptions([
-          "-vf scale=-2:720",
-  "-crf 20",
+          "-vf scale=720:1280:force_original_aspect_ratio=decrease",
+  "-c:v libx264",
   "-preset veryfast",
+  "-crf 20",
   "-pix_fmt yuv420p",
+  "-profile:v high",
+  "-level 4.1",
   "-movflags +faststart",
+  "-c:a aac",
+  "-b:a 128k",
   "-threads 1"
         ])
         .on("start", cmd => console.log("FF CMD:", cmd))
