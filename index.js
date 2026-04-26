@@ -44,28 +44,86 @@ async function downloadFile(url, filePath) {
   })
 }
 
-function compressVideo(input, output) {
-  return new Promise((resolve, reject) => {
-    ffmpeg(input)
-      .videoCodec("libx264")
-      .outputOptions([
-        "-vf scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)'",
-        "-crf 20",
-        "-preset fast",
-        "-pix_fmt yuv420p",
-        "-profile:v high",
-        "-level 4.1",
-        "-movflags +faststart",
-        "-map 0:v:0",
-        "-map 0:a?",
-        "-c:a aac",
-        "-b:a 128k"
-      ])
-      .on("start", cmd => console.log("FF:", cmd))
-      .on("end", resolve)
-      .on("error", reject)
-      .save(output)
-  })
+async function processVideo(url, res) {
+  const input = path.join(__dirname, "input.mp4")
+  const output = path.join(__dirname, "output.mp4")
+
+  try {
+    console.log("START:", url)
+
+    // hapus file lama
+    if (fs.existsSync(input)) fs.unlinkSync(input)
+    if (fs.existsSync(output)) fs.unlinkSync(output)
+
+    // ================= DOWNLOAD =================
+    const response = await axios({
+      url,
+      method: "GET",
+      responseType: "arraybuffer",
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://catbox.moe/"
+      },
+      timeout: 120000
+    })
+
+    fs.writeFileSync(input, response.data)
+
+    if (!fs.existsSync(input) || fs.statSync(input).size < 10000) {
+      throw new Error("File download gagal / corrupt")
+    }
+
+    console.log("Download OK")
+
+    // ================= DELAY PENTING =================
+    await new Promise(r => setTimeout(r, 1000))
+
+    // ================= COMPRESS =================
+    await new Promise((resolve, reject) => {
+      ffmpeg(input)
+        .videoCodec("libx264")
+        .outputOptions([
+          "-vf scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)'",
+          "-crf 20",
+          "-preset fast",
+          "-pix_fmt yuv420p",
+          "-profile:v high",
+          "-level 4.1",
+          "-movflags +faststart"
+        ])
+        .on("start", cmd => console.log("FF:", cmd))
+        .on("stderr", line => console.log("FFLOG:", line)) // 🔥 penting
+        .on("end", resolve)
+        .on("error", err => {
+          console.log("FF ERROR:", err)
+          reject(err)
+        })
+        .save(output)
+    })
+
+    if (!fs.existsSync(output)) {
+      throw new Error("Output tidak dibuat")
+    }
+
+    console.log("Compress OK")
+
+    // ================= KIRIM =================
+    res.download(output, "compressed.mp4", () => {
+      if (fs.existsSync(input)) fs.unlinkSync(input)
+      if (fs.existsSync(output)) fs.unlinkSync(output)
+    })
+
+  } catch (err) {
+    console.log("ERROR FIX:", err)
+
+    if (fs.existsSync(input)) fs.unlinkSync(input)
+    if (fs.existsSync(output)) fs.unlinkSync(output)
+
+    res.status(500).json({
+      status: "error",
+      message: err.message
+    })
+  }
 }
 
 async function processVideo(url, res) {
