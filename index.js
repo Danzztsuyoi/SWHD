@@ -61,17 +61,12 @@ async function processVideo(url, res) {
       ffmpeg(input)
         .videoCodec("libx264")
         .outputOptions([
-          "-vf scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)'",
-          "-crf 20",
-          "-preset fast",
-          "-pix_fmt yuv420p",
-          "-profile:v high",
-          "-level 4.1",
-          "-movflags +faststart",
-          "-map 0:v:0",
-          "-map 0:a?",
-          "-c:a aac",
-          "-b:a 128k"
+          "-vf scale=-2:720",
+  "-crf 22",
+  "-preset veryfast",
+  "-pix_fmt yuv420p",
+  "-movflags +faststart",
+  "-threads 1"
         ])
         .on("start", cmd => console.log("FF CMD:", cmd))
         .on("stderr", line => console.log("FF LOG:", line))
