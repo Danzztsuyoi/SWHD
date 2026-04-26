@@ -18,7 +18,8 @@ async function downloadFile(url, filePath) {
     headers: {
       "User-Agent": "Mozilla/5.0",
       "Referer": "https://catbox.moe/"
-    }
+    },
+    timeout: 120000
   })
 
   return new Promise((resolve, reject) => {
@@ -51,40 +52,60 @@ async function processVideo(url, res) {
 
     await downloadFile(url, input)
 
-    const stats = fs.statSync(input)
-    const sizeMB = stats.size / (1024 * 1024)
+    const sizeMB = fs.statSync(input).size / (1024 * 1024)
+    console.log("SIZE:", sizeMB.toFixed(2), "MB")
 
     let options = []
 
-    // 🔥 AUTO MODE
+    // ================= AUTO MODE =================
+
     if (sizeMB <= 20) {
-      console.log("MODE: SMALL (HD MAX)")
+      // 🔥 HD MODE (kualitas tinggi)
+      console.log("MODE: HD")
       options = [
-        "-vf scale=-2:1080",
-        "-crf 22",
-        "-maxrate 3M",
-        "-bufsize 6M",
-        "-preset medium",
+        "-vf scale=720:1280:force_original_aspect_ratio=decrease",
+        "-c:v libx264",
+        "-crf 20",
+        "-b:v 1500k",
+        "-preset veryfast", // diganti dari medium biar aman
+        "-pix_fmt yuv420p",
+        "-profile:v high",
+        "-level 4.1",
         "-movflags +faststart",
-        "-pix_fmt yuv420p"
+        "-c:a aac",
+        "-b:a 128k",
+        "-threads 1"
       ]
+
     } else if (sizeMB <= 30) {
-      console.log("MODE: MEDIUM (BALANCE)")
+      // ⚖️ BALANCE MODE
+      console.log("MODE: BALANCE")
       options = [
-        "-vf scale=-2:720",
-        "-crf 22",
+        "-vf scale=720:1280:force_original_aspect_ratio=decrease",
+        "-c:v libx264",
+        "-crf 21",
         "-preset veryfast",
+        "-pix_fmt yuv420p",
+        "-profile:v high",
+        "-level 4.1",
         "-movflags +faststart",
-        "-pix_fmt yuv420p"
+        "-c:a aac",
+        "-b:a 96k",
+        "-threads 1"
       ]
+
     } else {
-      console.log("MODE: LARGE (SAFE)")
+      // 💀 SAFE MODE (anti SIGKILL)
+      console.log("MODE: SAFE")
       options = [
-        "-vf scale=-2:720",
+        "-vf scale=720:-2",
+        "-c:v libx264",
         "-crf 23",
         "-preset ultrafast",
-        "-movflags +faststart",
         "-pix_fmt yuv420p",
+        "-movflags +faststart",
+        "-c:a aac",
+        "-b:a 96k",
         "-threads 1"
       ]
     }
@@ -104,7 +125,7 @@ async function processVideo(url, res) {
 
     res.status(200).json({
       status: "fail",
-      message: "gagal compress / video terlalu berat"
+      message: "gagal compress / server tidak kuat"
     })
   }
 }
@@ -117,7 +138,7 @@ app.get("/compress", async (req, res) => {
 })
 
 app.get("/", (req, res) => {
-  res.send("API READY 🔥")
+  res.send("API READY 🚀")
 })
 
 // ================= START =================
