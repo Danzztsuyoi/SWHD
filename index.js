@@ -62,7 +62,7 @@ async function processVideo(url, res) {
         .videoCodec("libx264")
         .outputOptions([
           "-vf scale=-2:720",
-  "-crf 22",
+  "-crf 20",
   "-preset veryfast",
   "-pix_fmt yuv420p",
   "-movflags +faststart",
