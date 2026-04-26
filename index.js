@@ -60,14 +60,13 @@ async function processVideo(url, res) {
     // ================= AUTO MODE =================
 
     if (sizeMB <= 20) {
-      // 🔥 HD MODE (kualitas tinggi)
+      // 🔥 HD MODE
       console.log("MODE: HD")
       options = [
         "-vf scale=720:1280:force_original_aspect_ratio=decrease",
         "-c:v libx264",
         "-crf 20",
-        "-b:v 1500k",
-        "-preset veryfast", // diganti dari medium biar aman
+        "-preset veryfast",
         "-pix_fmt yuv420p",
         "-profile:v high",
         "-level 4.1",
@@ -78,7 +77,7 @@ async function processVideo(url, res) {
       ]
 
     } else if (sizeMB <= 30) {
-      // ⚖️ BALANCE MODE
+      // ⚖️ BALANCE
       console.log("MODE: BALANCE")
       options = [
         "-vf scale=720:1280:force_original_aspect_ratio=decrease",
@@ -95,10 +94,10 @@ async function processVideo(url, res) {
       ]
 
     } else {
-      // 💀 SAFE MODE (anti SIGKILL)
+      // 💀 SAFE (anti SIGKILL)
       console.log("MODE: SAFE")
       options = [
-        "-vf scale=720:-2",
+        "-vf scale=720:1280:force_original_aspect_ratio=decrease",
         "-c:v libx264",
         "-crf 23",
         "-preset ultrafast",
