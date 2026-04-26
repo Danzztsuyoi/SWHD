@@ -47,23 +47,23 @@ async function downloadFile(url, filePath) {
 function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
+      .videoCodec("libx264")
       .outputOptions([
-        "-vf scale=-2:1080",
-  "-c:v libx264",
-  "-preset fast",
-  "-crf 20",
-  "-pix_fmt yuv420p",
-  "-profile:v high",
-  "-level 4.1",
-  "-movflags +faststart"
+        "-vf scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)'",
+        "-crf 20",
+        "-preset fast",
+        "-pix_fmt yuv420p",
+        "-profile:v high",
+        "-level 4.1",
+        "-movflags +faststart",
+        "-map 0:v:0",
+        "-map 0:a?",
+        "-c:a aac",
+        "-b:a 128k"
       ])
-      .on("start", cmd => console.log("FFMPEG CMD:", cmd))
-      .on("stderr", line => console.log("FFERR:", line))
+      .on("start", cmd => console.log("FF:", cmd))
       .on("end", resolve)
-      .on("error", err => {
-        console.log("FFMPEG ERROR:", err.message)
-        reject(err)
-      })
+      .on("error", reject)
       .save(output)
   })
 }
