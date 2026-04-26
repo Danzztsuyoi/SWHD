@@ -10,8 +10,7 @@ app.use(express.json())
 
 const PORT = process.env.PORT || 3000
 
-// ================= DOWNLOAD =================
-async function downloadFile(url, pathFile) {
+async function downloadFile(url, filePath) {
   console.log("Download URL:", url)
 
   if (!url.includes("http")) {
@@ -23,7 +22,7 @@ async function downloadFile(url, pathFile) {
     url,
     responseType: "stream",
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "User-Agent": "Mozilla/5.0",
       "Referer": "https://catbox.moe/",
       "Accept": "*/*"
     },
@@ -37,96 +36,73 @@ async function downloadFile(url, pathFile) {
   }
 
   return new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(pathFile)
-
+    const writer = fs.createWriteStream(filePath)
     response.data.pipe(writer)
 
-    writer.on("finish", () => {
-      console.log("Download selesai")
-      resolve()
-    })
-
-    writer.on("error", (err) => {
-      console.log("Download error:", err)
-      reject(err)
-    })
+    writer.on("finish", resolve)
+    writer.on("error", reject)
   })
 }
 
-// ================= COMPRESS =================
 function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .outputOptions([
-           "-vf scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)'",
-  "-c:v libx264",
-  "-preset medium",
-  "-crf 21",
-  "-maxrate 3M",
-  "-bufsize 6M",
-  "-pix_fmt yuv420p",
-  "-movflags +faststart"
+        "-vf scale=-2:1080",
+        "-c:v libx264",
+        "-preset fast",
+        "-crf 23",
+        "-pix_fmt yuv420p",
+        "-movflags +faststart",
+        "-threads 1"
       ])
-      .on("start", (cmd) => {
-        console.log("FFMPEG CMD:", cmd)
-      })
-      .on("end", () => {
-        console.log("Compress selesai")
-        resolve()
-      })
-      .on("error", (err) => {
-        console.log("FFMPEG ERROR:", err)
+      .on("start", cmd => console.log("FFMPEG CMD:", cmd))
+      .on("stderr", line => console.log("FFERR:", line))
+      .on("end", resolve)
+      .on("error", err => {
+        console.log("FFMPEG ERROR:", err.message)
         reject(err)
       })
       .save(output)
   })
 }
 
-// ================= PROCESS =================
 async function processVideo(url, res) {
   try {
     console.log("=== START PROCESS ===")
-    console.log("URL:", url)
 
-    const input = path.join(__dirname, "input.mp4")
-    const output = path.join(__dirname, "output.mp4")
+    const input = path.join(__dirname, `input_${Date.now()}.mp4`)
+    const output = path.join(__dirname, `output_${Date.now()}.mp4`)
 
-    // cek ffmpeg
     try {
       execSync("ffmpeg -version")
       console.log("FFMPEG TERDETEKSI ✅")
     } catch {
-      console.log("FFMPEG TIDAK ADA ❌")
-      throw new Error("ffmpeg belum terinstall di server")
+      throw new Error("ffmpeg belum terinstall")
     }
 
-    console.log("Mulai download...")
+    console.log("Download...")
     await downloadFile(url, input)
 
     if (!fs.existsSync(input)) {
       throw new Error("file input tidak ada")
     }
 
-    // delay biar aman
-    await new Promise(r => setTimeout(r, 1000))
-
-    console.log("Mulai compress...")
+    console.log("Compress...")
     await compressVideo(input, output)
 
     if (!fs.existsSync(output)) {
       throw new Error("file output tidak ada")
     }
 
-    console.log("Kirim ke user...")
-    res.download(output, "compressed.mp4", () => {
-      console.log("Selesai kirim")
-
+    console.log("Kirim file...")
+    res.download(output, "HD.mp4", () => {
       if (fs.existsSync(input)) fs.unlinkSync(input)
       if (fs.existsSync(output)) fs.unlinkSync(output)
     })
 
   } catch (err) {
-    console.log("ERROR BESAR:", err)
+    console.log("ERROR:", err.message)
 
     res.status(500).json({
       status: "error",
@@ -135,7 +111,6 @@ async function processVideo(url, res) {
   }
 }
 
-// ================= ROUTES =================
 app.get("/compress", async (req, res) => {
   const url = req.query.url
   if (!url) return res.status(400).json({ error: "url required" })
@@ -152,7 +127,6 @@ app.get("/", (req, res) => {
   res.send("API READY")
 })
 
-// ================= START =================
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT)
 })
