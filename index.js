@@ -48,11 +48,13 @@ function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .outputOptions([
-          "-vf scale=-2:720",
+      "-vf scale=-2:1080",
   "-c:v libx264",
-  "-preset fast",
-  "-crf 20",
+  "-preset medium",
+  "-crf 18",
   "-pix_fmt yuv420p",
+  "-profile:v high",
+  "-level 4.1",
   "-movflags +faststart"
       ])
       .on("start", cmd => console.log("FFMPEG CMD:", cmd))
