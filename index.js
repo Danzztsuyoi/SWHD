@@ -58,7 +58,7 @@ function compressVideo(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .outputOptions([
-         "-vf scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2",
+           "-vf scale=-2:1080",
   "-crf 21",
   "-maxrate 3M",
   "-bufsize 6M",
